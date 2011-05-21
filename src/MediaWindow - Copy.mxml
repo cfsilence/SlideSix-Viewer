@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>	
+<mx:Panel xmlns:mx="http://www.adobe.com/2006/mxml" borderAlpha="0.9" styleName="mediaWindow" creationComplete="init();" x="20" y="20" status="{videoContents.state}">
+
+	<mx:Script>
+		<![CDATA[
+		import flash.events.Event;
+		import flash.events.TimerEvent;
+		import flash.utils.Timer;
+		import mx.controls.Alert;
+		import mx.managers.PopUpManager;
+		import mx.events.VideoEvent;
+		import mx.events.MetadataEvent;
+		import mx.utils.ObjectUtil;
+		import flash.events.MouseEvent;
+
+		public var slideMediaURL:String;
+		public var percentComplete:Number;
+		public var percentLoaded:Number;
+		public var isLoaded:Boolean = false;
+		
+		[Bindable] public var hasMedia:Boolean;
+		[Bindable] public var hasVideo:Boolean = true;
+		[Bindable] public var isPlaying:Boolean = false;
+		[Bindable] public var currentSlide:Number;
+		
+		[Bindable][Embed(source = 'assets/play.png')] private var playImg:Class;
+		[Bindable][Embed(source = 'assets/stop.png')] private var stopImg:Class;
+		[Bindable][Embed(source = 'assets/pause.png')] private var pauseImg:Class;
+		
+		
+		public function init():void {
+			videoContents.addEventListener(VideoEvent.COMPLETE, vidCompleteHandler);
+			videoContents.addEventListener(MetadataEvent.METADATA_RECEIVED, metaReceivedHandler);
+			this.addEventListener(MouseEvent.MOUSE_DOWN, mouseDown);
+			this.addEventListener(MouseEvent.MOUSE_UP, mouseUp)
+		}
+		
+		public function mouseDown(e:MouseEvent):void {
+			this.startDrag();
+		}
+		
+		public function mouseUp(e:MouseEvent):void {
+			this.stopDrag();
+		}
+		
+		public function initVideo():void {
+			
+		}
+		
+		public var myTimer:Timer;
+		
+		public function vidReadyHandler(e:VideoEvent):void {
+			isPlaying = false;
+		}
+		
+		public function vidCheckTimerHandler(e:TimerEvent):void {
+			if (parentApplication.isSlidePlaying) {
+				if (videoContents.state != 'playing') {
+					playMedia();
+				}
+				else {
+					myTimer.reset();
+				}
+			}
+			else {
+				myTimer.reset();
+			}
+			
+		}
+		
+		public function metaReceivedHandler(e:Event):void {
+			isLoaded = true;
+			
+			if (parentApplication.isSlidePlaying) {
+				//playMedia();
+				myTimer = new Timer(100, 0);
+				myTimer.addEventListener("timer", vidCheckTimerHandler);
+				myTimer.start();
+			}
+			
+			if (videoContents.metadata.videocodecid == -1) {
+				hasVideo = false;
+			}
+			else {
+				hasVideo = true;
+			}
+		}
+		
+		public function vidCompleteHandler(e:VideoEvent):void {
+			if (!parentApplication.isSlidePlaying) {
+				stopMedia();
+			}
+			else {
+				//audio only files get wonky and wont report 100% done so we transition them here
+				if (!hasVideo && parentApplication.hasNext) parentApplication.transition('next');
+				if (!parentApplication.hasNext) parentApplication.isSlidePlaying = false;
+			}
+		}
+		
+		public function playMedia():void {
+			
+			if (!isPlaying) {
+			
+				videoContents.play();
+				isPlaying = true;
+			}
+			else {
+				isPlaying = false;
+				videoContents.pause();
+				//playBtn.source = playImg;
+			}	
+		}
+		
+		public function stopMedia():void {	
+			parentApplication.playProgressBar.setProgress(0, 0);
+			if (isPlaying) {
+				videoContents.stop();
+			}
+			isPlaying = false;
+		}
+		
+		public function updateTime(e:Event):void {
+			var currentProgress:Number = (videoContents.playheadTime / videoContents.totalTime) * 100;
+			parentApplication.playProgressBar.setProgress(currentProgress, 100);
+			//if the video is completely loaded and we're at the end then autoadvance
+			if (videoContents.bytesLoaded == videoContents.bytesTotal) {
+				if (videoContents.playheadTime >= videoContents.totalTime && parentApplication.isSlidePlaying && parentApplication.hasNext) {
+					stopMedia();
+					parentApplication.transition('next');
+				}
+			}
+		}
+		public function setLoaded(e:Event):void {
+			percentLoaded = (videoContents.bytesLoaded / videoContents.bytesTotal) * 100;
+		}
+		]]>
+	</mx:Script>
+	<mx:WipeUp duration="500" id="wipeU" />
+	<mx:WipeDown duration="500" id="wipeD" />
+	
+	<mx:Canvas>
+		<mx:VideoDisplay backgroundColor="#000000" progress="setLoaded(event);" playheadUpdate="updateTime(event);" backgroundAlpha="0.5" id="videoContents" width="130" height="{hasVideo ? 96 : 0}" visible="{hasVideo}" autoPlay="false" ready="vidReadyHandler(event)" bufferTime="0.5" autoRewind="false" playheadUpdateInterval="1" />
+	</mx:Canvas> 				
+	<!-- 
+	<mx:ControlBar>
+		<mx:VBox width="100%" paddingBottom="0" paddingTop="0" paddingRight="0" paddingLeft="0">
+			
+			<mx:HBox height="7" horizontalAlign="center">
+				<mx:ProgressBar id="positionBar" mode="manual" width="125" label="" click="seekTo(event);" barColor="#ff0000" />
+			</mx:HBox>
+			
+			<mx:HBox width="100%">
+				<mx:Image source="{playImg}" id="playBtn" click="playMedia();" toolTip="{isPlaying ? 'Pause media file' : 'Play media file'}" />
+				<mx:Image source="{stopImg}" id="stopBtn" click="stopMedia();" toolTip="Stop media file" />
+			</mx:HBox>
+			
+		</mx:VBox>
+	</mx:ControlBar>
+	-->
+</mx:Panel>

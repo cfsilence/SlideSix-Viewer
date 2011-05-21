@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" showCloseButton="true" title="Embed Code">
+	<mx:Script>
+		<![CDATA[
+		import mx.controls.Alert;
+		import flash.events.Event;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		
+		public var slideshowID:Number;
+		public var code:String = '';
+		public var h:Number = 425;
+		
+		public function init():void {
+			if (parentApplication.slideContainer.content.height > parentApplication.slideContainer.content.width) h = 625;
+			code += '<object height="' + h + '" width="550" id="PresentationViewer">';
+			code += '\n\t<param name="movie" value="http://slidesix.com/viewer/SlideSixViewer.swf?slideshowID=' + slideshowID + '"/>';
+			code += '\n\t<param name="menu" value="false"/>';
+			code += '\n\t<param name="scale" value="noScale"/>';
+			code += '\n\t<param name="allowFullScreen" value="true"/>';
+			code += '\n\t<param name="allowScriptAccess" value="always" />';
+			code += '\n\t<embed src="http://slidesix.com/viewer/SlideSixViewer.swf?slideshowID='+slideshowID+'" name="PresentationViewer" allowscriptaccess="always" allowFullScreen="true" height="' + h + '" width="550" type="application/x-shockwave-flash" />'
+			code += '\n</object>';
+			embedCode.text = code;
+			this.addEventListener(CloseEvent.CLOSE, closeHandler);
+		}
+		public function closeHandler(e:Event):void {
+			PopUpManager.removePopUp(this);
+		} 
+		]]>
+	</mx:Script>
+	<mx:VBox id="embedForm" width="400" height="200" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+		<mx:TextArea width="100%" height="100%" id="embedCode" editable="false" />
+	</mx:VBox>
+	<mx:ControlBar width="100%">
+		<mx:HBox width="100%" paddingBottom="10" paddingLeft="10" paddingRight="10" paddingTop="10">
+			<mx:Button id="copyEmbedCode" click="System.setClipboard(embedCode.text); Alert.show('Copied to clipboard');" label="Copy To Clipboard" />
+		</mx:HBox>
+	</mx:ControlBar>
+</mx:TitleWindow>

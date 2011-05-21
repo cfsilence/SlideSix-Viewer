@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" showCloseButton="true" title="Created By">
+	<mx:Script>
+		<![CDATA[
+		import flash.events.Event;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		
+		[Bindable]
+		public var userImgPath:String;
+		[Bindable]
+		public var username:String;
+		[Bindable]
+		public var bio:String;
+		[Bindable]
+		public var presenter:String;
+		[Bindable]
+		public var profileURL:String;
+		
+		public function init():void {
+			this.addEventListener(CloseEvent.CLOSE, closeHandler);
+			profileURL = '<a href="http://slidesix.com/user/'+username+'" target="_blank">'+presenter+'</a>';
+		}
+		public function closeHandler(e:Event):void {
+			PopUpManager.removePopUp(this);
+		}
+		]]>
+	</mx:Script>
+	<mx:HBox id="userForm" width="360" height="170" paddingBottom="10" paddingTop="10" paddingRight="10" paddingLeft="10" backgroundColor="#000000" backgroundAlpha="0.5">
+		<mx:VBox width="150">
+			<mx:Image id="userImage" source="{userImgPath}" />
+		</mx:VBox>
+		<mx:VBox width="180" id="bioBox">
+			<mx:VBox>
+				<mx:Label htmlText="{profileURL}" />
+			</mx:VBox>
+			<mx:VBox height="115" width="175">
+				<mx:Text htmlText="{bio}" width="155" />
+			</mx:VBox>
+		</mx:VBox>
+	</mx:HBox>
+</mx:TitleWindow>

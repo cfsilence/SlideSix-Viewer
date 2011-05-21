@@ -1,0 +1,1027 @@
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" xmlns="*" layout="vertical" creationComplete="getAppConfig()" applicationComplete="appComplete(event)"
+				width="100%" height="100%" paddingLeft="0" paddingBottom="0" paddingTop="0" paddingRight="0" 
+				backgroundGradientColors="[#000000,#707070]" verticalAlign="bottom" borderStyle="solid" cornerRadius="0" 
+				xmlns:seb="com.sebastiaanholtrop.components.coverflow.*" horizontalScrollPolicy="off" verticalScrollPolicy="off" addedToStage="initTracker()" 
+				xmlns:slidesix="com.slidesix.*">
+	<mx:Script source="com/slidesix/VideoLogic.as" />
+	<mx:Style source="style/style.css"/> 
+	<mx:Style>
+		global{
+			modalTransparencyBlur: 0;
+			modalTransparency: 0.8;
+			modalTransparencyColor: black;
+			modalTransparencyDuration: 500;
+			fontFamily: 'Verdana';
+			fontSize: 12px;
+		}
+		TitleWindow,Alert{
+			borderColor: #333333;
+			roundedBottomCorners: true;
+			paddingBottom: 0;
+			paddingTop:0;
+			paddingRight: 0;
+			paddingLeft: 0;
+			borderAlpha: 0.7;
+			fontWeight: normal;
+			titleStyleName: windowTitle;
+			/*backgroundAlpha: 0.5;*/
+		}
+		.windowTitle{
+			fontWeight: normal;
+		}
+		.mediaWindow{
+			headerHeight: 10;
+		}
+		.formContainer{
+			paddingBottom: 5;
+			paddingTop:5;
+			paddingRight: 5;
+			paddingLeft: 5;
+		}
+		.bioBox{
+			color: #000000;
+		}
+		TextInput,TextArea{
+		}
+		Image{
+			brokenImageSkin: Embed('assets/no_image.jpg');
+			borderAlpha: 0.5;
+			borderThickness: 0;
+			borderColor: #000000;
+		}
+		ToolTip{
+			backgroundColor: #000000;
+			color: #ffffff;
+			backgroundAlpha: 0.9;
+			fontSize: 10px;
+		}
+		
+		.main{
+			borderAlpha: .5;
+			backgroundColor: #000000;
+			backgroundAlpha: .5;
+			borderColor: #000000;
+			borderThickness: 0;
+			paddingBottom: 0;
+			paddingTop: 0;
+			paddingRight: 0;
+			paddingLeft: 0;
+		}
+		Button{
+			fontWeight: normal;
+		}
+		.menuBtn{
+			cornerRadius: 3;
+			textIndent: 0;
+			paddingLeft: 4;
+			paddingRight: 4;
+			paddingTop: 2;
+			paddingBottom: 0;
+			letterSpacing: 1;
+			highlightAlphas: 0.22,0.1;
+			fillColors: #000000,#333333,#333333,#000000;
+			color: #fcfcfc;
+			textRollOverColor: #ffffff;
+			borderColor: #333333;
+			themeColor: #999999;
+		}
+		.slideText{
+			fontSize: 14px;
+			/*fontWeight: bold;*/
+		}
+		.panelTitleStyle{
+			text-align: center;
+		}
+	</mx:Style>
+	<mx:Script>
+		<![CDATA[
+		import away3d.animators.TimeBase;
+		
+		import com.google.analytics.AnalyticsTracker;
+		import com.google.analytics.GATracker;
+		import com.slidesix.*;
+		import com.slidesix.SmoothImage;
+		
+		import flash.display.DisplayObject;
+		import flash.events.Event;
+		import flash.events.FullScreenEvent;
+		import flash.events.KeyboardEvent;
+		import flash.events.MouseEvent;
+		import flash.events.TimerEvent;
+		import flash.external.ExternalInterface;
+		import flash.net.FileReference;
+		import flash.net.URLRequest;
+		import flash.net.URLVariables;
+		import flash.net.navigateToURL;
+		import flash.ui.Keyboard;
+		import flash.utils.Timer;
+		
+		import mx.collections.ArrayCollection;
+		import mx.collections.XMLListCollection;
+		import mx.containers.TitleWindow;
+		import mx.controls.Alert;
+		import mx.core.Application;
+		import mx.core.Container;
+		import mx.effects.Glow;
+		import mx.effects.Pause;
+		import mx.effects.Sequence;
+		import mx.events.ResizeEvent;
+		import mx.events.VideoEvent;
+		import mx.managers.PopUpManager;
+		import mx.managers.ToolTipManager;
+		import mx.rpc.events.ResultEvent;
+		import mx.utils.ObjectUtil;
+		import mx.utils.URLUtil;
+	
+		[Bindable][Embed(source='assets/dashboard_logo.png')] private var logoImg:Class;
+		[Bindable][Embed(source = 'assets/media.png')] private var mediaImg:Class;
+		[Bindable][Embed(source = 'assets/play_blue.png')] private var playBlueImg:Class;
+		[Bindable][Embed(source = 'assets/fullscreen.png')] private var fullscreenImg:Class;
+		[Bindable][Embed(source = 'assets/exit_fullscreen.png')] private var exitFullscreenImg:Class;
+		[Bindable][Embed(source = 'assets/user.png')] private var userImg:Class;
+		[Bindable][Embed(source = 'assets/attach3.png')] private var attachImg:Class;
+		[Bindable][Embed(source = 'assets/note.png')] private var notesImg:Class;
+		[Bindable][Embed(source = 'assets/slides.png')] private var slidesImg:Class;
+		[Bindable][Embed(source = 'assets/home.png')] private var homeImg:Class;
+		[Bindable][Embed(source = 'assets/details.png')] private var detailsImg:Class;
+		[Bindable][Embed(source = 'assets/code.png')] private var embedImg:Class;
+		[Bindable][Embed(source = 'assets/mail.png')] private var mailImg:Class;
+		/* [Bindable][Embed(source = 'assets/new/play.png')] private var playImg:Class;
+		[Bindable][Embed(source = 'assets/new/pause.png')] private var pauseImg:Class; */
+		[Bindable][Embed(source = 'assets/play.png')] private var playImg:Class;
+		[Bindable][Embed(source = 'assets/pause.png')] private var pauseImg:Class;
+		[Bindable][Embed(source = 'assets/new/rewind.png')] private var rewindImg:Class;
+		[Bindable][Embed(source = 'assets/new/forward.png')] private var forwardImg:Class;
+		[Bindable][Embed(source = 'assets/stop.png')] private var stopImg:Class;
+		[Bindable][Embed(source = 'assets/start.png')] private var startImg:Class;
+		[Bindable][Embed(source = 'assets/end.png')] private var endImg:Class;
+		[Bindable][Embed(source = 'assets/stop_grey.png')] private var stopDisabledImg:Class;
+		[Bindable][Embed(source = 'assets/start_grey.png')] private var startDisabledImg:Class;
+		[Bindable][Embed(source = 'assets/end_grey.png')] private var endDisabledImg:Class;
+		[Bindable][Embed(source = 'assets/rewind_grey.png')] private var rewindDisabledImg:Class;
+		[Bindable][Embed(source = 'assets/forward_grey.png')] private var forwardDisabledImg:Class;
+		[Bindable][Embed(source = 'assets/film_delete.png')] private var disableAutoPlayImg:Class;
+		
+		[Bindable] public var storeBaseURL:String;
+		[Bindable] public var statusMsg:String = 'Loading...';
+		[Bindable] public var hasNext:Boolean = false;
+		[Bindable] public var hasPrev:Boolean = false;
+		[Bindable] public var isInFullScreen:Boolean = false;
+		[Bindable] private var presentation:Object;
+		[Bindable] private var slides:Array;
+		[Bindable] private var thumbs:ArrayCollection;
+		[Bindable] public var currentSlide:Number = 0;
+		[Bindable] private var slideLen:Number = 0;
+		[Bindable] private var direction:String;	
+		[Bindable] private var slideNum:Number;	
+		[Bindable] private var slideMediaURL:String;
+		[Bindable] private var slideHasMedia:Boolean;
+		[Bindable] private var presoAttachmentURL:String;
+		[Bindable] private var presoRecordingURL:String;
+		[Bindable] private var presoHasAttachment:Boolean;
+		[Bindable] public var viewURL:String;
+		[Bindable] public var userOverrideAutoPlay:Boolean = false;
+		[Bindable] public var isSlidePlaying:Boolean = false;
+		[Bindable] public var mp:ExternalMediaPlayer = new ExternalMediaPlayer();
+		[Bindable] public var autoPlayDuration:Number = 10000;
+		[Bindable] public var newMenuWasShownOnce:Boolean = false;
+		
+		public var appConfig:Object;
+		public var fileToDownload:FileReference = new FileReference();
+		public var slideshowID:Number;
+		public var host:String;
+		public var homeURL:String;
+		public var shareURL:String;
+		[Bindable] public var userImgPath:String;
+		public var ref:String;
+		public var keyListener:Object = new Object();
+		public var autoPlayTimer:Timer = new Timer(1,0);
+		public var autoPlayTimeElapsed:Number = 0;
+		public var hideTopMenuTimer:Timer = new Timer(3000, 1);
+		public var pageNameBase:String;
+		public var tracker:GATracker;
+		public var glowIn:Glow;
+		
+		public function playerKeyHandler(event:KeyboardEvent):void {
+			//Alert.show(ObjectUtil.toString(event.keyCode));
+			if (!slideList.visible && !fadeOut.isPlaying && !fadeIn.isPlaying) {
+				switch (event.keyCode) {
+					case Keyboard.LEFT:
+						if (hasPrev) {
+							transition('prev');
+						}
+						event.stopPropagation();
+					break;
+					case Keyboard.RIGHT:
+						if (hasNext) {
+							transition('next');
+						}
+						event.stopPropagation();
+					break;
+					case Keyboard.UP:
+						event.stopPropagation();
+					break;
+					case Keyboard.DOWN:
+						slideList.visible = true;
+						slideThumbList.setFocus();
+						event.stopPropagation();
+					break;
+					case Keyboard.ENTER:
+						event.stopPropagation();
+					break;
+				}
+				if (event.keyCode.toString() == '179') {
+					handlePlayClick();
+				}
+				else if (event.keyCode.toString() == '178') {
+					handleStopClick();
+				}
+			}
+		}
+		public function initTracker():void {
+			//set up analytics tracker
+			try{
+				tracker = new GATracker(this, 'UA-1124632-8', 'AS3', false);
+				tracker.trackPageview(pageNameBase);
+			}
+			catch(e:Error){
+				//fail silently 
+			}
+		}
+		   
+		public function getAppConfig():void{
+			appConfigService.getConfig.send();
+		}
+		
+		public function getAppConfigHandler(e:ResultEvent):void{
+			appConfig = e.result;
+			storeBaseURL = appConfig.storeBaseURL;
+			Security.loadPolicyFile(storeBaseURL + '/crossdomain.xml');
+			init();
+		}
+		
+		public function init():void {
+			//set up a timer to auto hide the top menu
+			hideTopMenuTimer.addEventListener("timer", handleTopMenuTimer);
+			hideTopMenuTimer.start();
+			//set up external media player
+			mp.addEventListener(ExternalMediaPlayerCreatedEvent.PLAYER_CREATED, playerCreatedHandler);
+			mp.addEventListener(ExternalMediaPlayerReadyEvent.PLAYER_READY, mediaPlayerReadyHandler);
+			mp.addEventListener(ExternalMediaReadyEvent.MEDIA_READY, mediaReadyHandler);
+			externalMediaContainer.addChild(mp);
+			
+			ToolTipManager.showDelay = 500;
+			host = URLUtil.getServerName(Application.application.url);
+			slideshowID = this.parameters.slideshowID;
+			pageNameBase = '/view/' + slideshowID;
+
+			homeURL = 'http://' + host;
+			viewURL = homeURL + '/view/' + slideshowID;
+			shareURL = homeURL + '/index.cfm?event=shareSlideShow';
+			
+			
+			//initialize media window
+			/* mediaWindow = MediaWindow(PopUpManager.createPopUp(this, MediaWindow, false));
+			mediaWindow.visible = false;
+			mediaWindow.slideMediaURL = slideMediaURL; */
+			hasMedia = slideHasMedia;
+
+			//listen for slides to be loaded
+			slideContainer.addEventListener(Event.COMPLETE, slideLoadedHandler);
+			slideContainer.addEventListener(ProgressEvent.PROGRESS, function(e:ProgressEvent):void{
+				if(e.bytesLoaded < e.bytesTotal){
+					loadingBar.visible = true;
+				}
+			});
+			getSlideshow();
+			
+			var jsReadyTimer:Timer = new Timer(100, 0);
+			jsReadyTimer.addEventListener(TimerEvent.TIMER, function(event:TimerEvent):void{
+				if(ExternalInterface.available){
+					ExternalInterface.addCallback('loadSlideshow', loadFromJavaScript);
+					try {
+						ref = String(
+							ExternalInterface.call(
+								"function(){return document.location.host.toString();}"
+							)
+						);
+					}
+					catch (e:Error) {
+						//fail silently
+					}
+					Timer(event.target).stop();
+				}
+			});
+			jsReadyTimer.start();
+			
+			initVideo();
+		}
+		
+		public function loadFromJavaScript(id:Number):void{
+			slideshowID = id;
+			try{
+				getSlideshow();
+			}
+			catch(e:Error){
+				Alert.show('An error occurred while loading the presentation');
+			}
+		}
+			
+		public function getSlideshow():void{
+			var params:Object = new Object();
+			params.slideshowID = slideshowID;
+			slideShowService.getSlideshowByID.send(params);
+			
+			var vParams:Object = new Object();
+			vParams.referrer = ref != null && ref.length > 0 ? ref : null;
+			vParams.embeddedView = ref != null ? ref == host : false; 
+			slideShowService.saveNewView.send(vParams, slideshowID);
+		}
+			
+		public function getSlideshowHandler(e:ResultEvent):void {
+			presentation = e.result as Object;
+			getSlides();
+		}
+		
+		public function getSlides():void{
+			var params:Object = new Object();
+			params.slideshowID = slideshowID;
+			slideShowService.listSlidesBySlideshowID.send(params);
+		}
+			
+		public function saveNewViewHandler(e:ResultEvent):void {
+			//do nothing...the view was saved
+		}
+			
+		public function slideLoadedHandler(e:Event):void {
+			if (slideContainer.content.height > slideContainer.content.width || isInFullScreen) {
+				slideContainer.maintainAspectRatio = true;
+			}
+			else {
+				slideContainer.maintainAspectRatio = false;
+			}
+			//remove after the first time we fire, no need to check again - all slides are the same
+			//if (slideContainer.hasEventListener(Event.COMPLETE)) slideContainer.removeEventListener(Event.COMPLETE, slideLoadedHandler);
+			loadingBar.visible = false;
+		}
+		
+		public function appComplete(e:Event):void {
+			//listen for full screen change
+			stage.addEventListener(MouseEvent.MOUSE_MOVE, toggleTopMenu);
+			stage.addEventListener(KeyboardEvent.KEY_DOWN, playerKeyHandler);
+			stage.addEventListener(FullScreenEvent.FULL_SCREEN, fullScreenHandler);
+			
+		}
+		
+		public function getSlidesHandler(event:ResultEvent):void {
+			slides = event.result as Array;
+			
+			trace(ObjectUtil.toString(slides));
+			
+			if (slides.length == 0) {
+				Alert.show('Presentation was not found.');
+				loadingBar.visible = false;
+			}
+			else {
+				thumbs = new ArrayCollection();
+
+				for (var i:Number = 0; i<slides.length; i++) {
+					thumbs.addItem({source: storeBaseURL + slides[i].PATHTOSLIDETHUMB,toolTip:slides[i].TITLE});
+				}
+				
+				//slideContainer.source = homeURL + '/' + slides[0].PATHTOSLIDE;	
+				slideContainer.source = storeBaseURL + slides[0].PATHTOSLIDE;	
+
+				var aURL:String = presentation.PATHTOATTACHMENT;
+				
+				if (aURL != null) {
+					presoAttachmentURL = storeBaseURL + aURL;
+					presoHasAttachment = true;
+				}
+				else {
+					presoAttachmentURL = '';
+					presoHasAttachment = false;
+				}
+				
+				slideLen = slides.length;
+				currentSlide = -1;
+				advance('next');	
+				
+				/* var timer:Timer = new Timer(3000, 1);
+				timer.addEventListener("timer", function():void{
+					for (var i:Number = 0; i < slides.length(); i++) {
+						var p:String = slides[i].PATHTOSLIDE;
+						if(p.length){
+							var l:Image = new Image();
+							l.load(p);
+						}
+						statusMsg = '';
+					}
+				});
+				timer.start(); */
+				statusMsg = '';
+			}
+			
+			
+		}
+
+		public function slideThumbClicked(dir:String, sNum:Number):void {
+			if (slideThumbList.selectedIndex != currentSlide && !fadeOut.isPlaying && !fadeIn.isPlaying) {
+				transition('', slideThumbList.selectedIndex);
+				slideCanvas.setFocus();
+			}
+			else {
+				slideList.visible = false;
+			}
+		}
+	
+		public function transition(dir:String, ...rest):void {
+			slideList.visible = false;
+			fadeOut.play();
+			direction = dir;
+			var sNum:Number = -1;
+			if (rest.length > 0) {
+				sNum = rest[0];
+			}
+			slideNum = sNum;
+		}
+		
+		private function transitionComplete():void {
+			fadeIn.play();
+		}
+
+		public function handleStopClick():void {
+			isSlidePlaying = false;
+			if (slides[currentSlide].EXTERNALMEDIAID == null) {
+				if (isPlaying) stopMedia();
+				autoPlayTimer.reset();
+				playProgressBar.setProgress(0, 0);	
+			}
+			else {
+				if (mp.isPlaying) {
+					mp.stop();
+				}
+			}
+		}
+		
+		public function handlePlayClick():void {
+			
+			if (slides[currentSlide].EXTERNALMEDIAID == null) {
+				if (!isSlidePlaying) {
+					isSlidePlaying = true;
+					
+					if (slideHasMedia && !isPlaying) {
+						playMedia();
+					}
+					else {
+						//autoPlayTimeElapsed = 0;
+						//trace(autoPlayTimer.currentCount);
+						if (autoPlayTimer.currentCount == 0) {
+							autoPlayTimer.addEventListener("timer", autoPlayTimerHandler);
+						}
+						autoPlayTimer.start();
+					}
+				}
+				else {
+					isSlidePlaying = false;
+					autoPlayTimer.stop();
+					if (isPlaying) playMedia();
+				}
+			}
+			else {
+				if (!mp.isPlaying) {
+					mp.play();
+				}
+				else {
+					mp.pause();
+				}
+			}
+			
+		}
+		
+		public function seekTo(e:Event):void {
+			if (isPlaying) {
+				var hitX:Number = e.target.contentMouseX;
+				var percentOfBar:Number = (hitX / playProgressBar.width);
+				//var whereToSeekTo:Number = videoContents.totalTime * percentOfBar;
+				if ((percentOfBar * 100) <= percentLoaded && isLoaded) {
+					//videoContents.playheadTime = whereToSeekTo;
+				}
+			}
+			
+		}
+		public function handleTopMenuTimer(e:TimerEvent):void {
+			topMenu.visible = false;
+			hideTopMenuTimer.stop();
+		}
+		public function autoPlayTimerHandler(e:TimerEvent):void {
+			autoPlayTimeElapsed += autoPlayTimer.delay;
+		
+			switch(autoPlaySpeed.value) {
+				case 1:
+					autoPlayDuration = 15000;
+					break;
+				case 2:
+					autoPlayDuration = 10000;
+					break;
+				case 3:
+					autoPlayDuration = 5000;
+					break;
+			}
+			var progress:Number = (autoPlayTimeElapsed / autoPlayDuration) * 100;
+			playProgressBar.setProgress(progress, 100);
+			
+			if (progress >= 100) {
+				autoPlayTimer.stop();
+				autoPlayTimer.reset();
+				if (hasNext) {
+					transition('next');
+				}
+				else {
+					isSlidePlaying = false;
+				}
+			} 
+			
+		}
+		
+		private function advance(dir:String, ...rest):void {
+			hasMedia = false;
+			stopGlow();
+			extrasMenu.visible = false;
+			var s:Number = -1;
+			
+			if (rest.length > 0) {
+				s = rest[0];
+			}
+			
+			if (userOverrideAutoPlay) {
+				isSlidePlaying = false;
+			}
+			//reset vars and do some general clean up
+			try {
+				mp.dispose();
+			}
+			catch (e:Error) {
+				//fail silently, there is nothing to dispose of
+			}
+			
+			autoPlayTimer.reset();
+			
+			if (isPlaying) {
+				stopMedia();
+				ns.close();
+				connectStream();
+				hasVideo = false;
+			}
+			
+			
+			playProgressBar.setProgress(0, 0);
+			
+			switch (dir) {
+				case "prev":
+					currentSlide--;
+					break;
+				case "next":
+					currentSlide++;
+					break;
+				case "start":
+					currentSlide = 0;
+					break;
+				case "end":
+					currentSlide = slideLen - 1;
+					break;
+			}
+			
+			if (s != -1) currentSlide = s;
+			
+			if (currentSlide > 0 && slideLen > 1) {
+				hasNext = true;
+				hasPrev = true;
+			}
+			if (currentSlide >= slideLen - 1) {
+				hasNext = false;
+				currentSlide = slideLen - 1;
+				isSlidePlaying = false;
+			}
+			if (currentSlide == 0 && slideLen > 1) {
+				hasNext = true;
+				hasPrev = false;
+			}
+			
+			if (!slides[currentSlide].EXTERNALMEDIAID != null) {
+				slideContainer.visible = true;
+				if (slideContainer.source.toString() != storeBaseURL + slides[currentSlide].PATHTOSLIDE) {
+					loadingBar.visible = true;
+					slideContainer.source = storeBaseURL + slides[currentSlide].PATHTOSLIDE;
+				}  
+			}
+			else {
+				slideContainer.visible = false;
+				externalMediaContainer.visible = true;
+			}
+			
+			if (autoPlayTimer.hasEventListener("timer")) autoPlayTimer.removeEventListener("timer", autoPlayTimerHandler);
+			autoPlayTimeElapsed = 0;
+			autoPlayTimer = new Timer(100, 0);
+				
+			//has internal media
+			if (slides[currentSlide].HASMEDIA && slides[currentSlide].PATHTOSLIDEMEDIA != null) {
+				hasMedia = slides[currentSlide].HASMEDIA;
+				mediaStatus = 'ready';
+				if(autoShowMenu.selected){
+					showNewMenu();
+				}
+				else{
+        			if(leftSidebar.width == 0){
+        				//startGlow();
+        			}
+				}
+			}
+			else{
+				//hideNewMenu();
+			}
+			
+			//no media at all
+			if (!slideHasMedia && isSlidePlaying && slides[currentSlide].EXTERNALMEDIAID == null) {
+				autoPlayTimer.addEventListener("timer", autoPlayTimerHandler);
+				autoPlayTimer.start();
+			}
+			
+			//has internal media
+			if (slideHasMedia && isSlidePlaying) {
+				playMedia();
+			}
+			if(slideHasMedia && !isSlidePlaying){
+				generateThumbPreview();
+			}
+			
+			//has external media
+			if (slides[currentSlide].EXTERNALMEDIAID != null) {
+				mp.externalMediaID = slides[currentSlide].EXTERNALMEDIAID;
+				mp.externalMediaSource = slides[currentSlide].EXTERNALMEDIASOURCE;
+				mp.loadVideo();	
+				hideNewMenu();
+				fixExternalMediaSize();
+			}
+			
+			if(slideNotes.visible){
+				slideNotes.verticalScrollPosition = 0;
+			}
+			
+			//google analytics tracking
+			try{
+				tracker.trackPageview(pageNameBase + '/'+ slides[currentSlide].alias);
+			}
+			catch(e:Error){
+				//die a slow a painful death
+			}
+		}
+		
+		public function playerCreatedHandler(e:ExternalMediaPlayerCreatedEvent):void {
+		}
+		
+		public function mediaReadyHandler(e:ExternalMediaPlayerReadyEvent):void {
+			mp.setSize(slideCanvas.width, slideCanvas.height);
+			if (isSlidePlaying && slides[currentSlide].EXTERNALMEDIAID != null) {
+				mp.play();
+			}
+		}
+		public function mediaPlayerReadyHandler(e:ExternalMediaPlayerReadyEvent):void {
+			fixExternalMediaSize();
+		}
+		
+		public function toggleVideo():void {
+			/* if (!mediaWindow.visible) {
+				mediaWindow.visible = true;	
+			}
+			else {
+				mediaWindow.visible = false;	
+			} */
+		}
+		
+		public function downloadAttach():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			var request:URLRequest = new URLRequest(presoAttachmentURL);
+
+			fileToDownload.addEventListener(IOErrorEvent.IO_ERROR, downloadErrorHandler);
+			fileToDownload.addEventListener(Event.COMPLETE, downloadCompleteHandler);
+			fileToDownload.addEventListener(Event.CANCEL, downloadErrorHandler);
+			//fileToDownload.addEventListener(Event.OPEN, );
+			fileToDownload.addEventListener(Event.SELECT, downloadSelectHandler);
+			//fileToDownload.addEventListener(ProgressEvent.PROGRESS, );
+			fileToDownload.download(request, presentation.ALIAS + '.zip');
+		}
+		
+		public function downloadSelectHandler(e:Event):void {
+			loadingBar.visible = true;
+		}
+		
+		public function downloadErrorHandler(e:ErrorEvent):void {
+			loadingBar.visible = false;
+			Alert.show(mx.utils.ObjectUtil.toString(e));
+		}
+		public function downloadCompleteHandler(e:Event):void {
+			loadingBar.visible = false;
+			Alert.show('File Download Complete');
+		}
+		public function goDetails():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			var urlRequest:URLRequest = new URLRequest(viewURL);
+			navigateToURL(urlRequest,'_self');
+		}
+		public function goRecordedVersion():void {
+			Alert.show('remove me');
+		}
+		public function goHome():void {
+			var urlRequest:URLRequest = new URLRequest(homeURL);
+			navigateToURL(urlRequest,'_self');
+		}
+		
+		public function getEmbedCode():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			var embedCodeWindow:EmbedCodeWindow = EmbedCodeWindow(PopUpManager.createPopUp(this, EmbedCodeWindow, true));
+			embedCodeWindow.slideshowID = slideshowID;
+			PopUpManager.centerPopUp(embedCodeWindow);
+		}
+		public function getUser():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			var userWindow:UserWindow = UserWindow(PopUpManager.createPopUp(this, UserWindow, true));
+			userWindow.userImgPath = presentation.CREATEDBYIMG;
+			userWindow.username = presentation.CREATEDBYUSERNAME;
+			userWindow.bio = presentation.CREATEDBYBIO;
+			userWindow.presenter = presentation.CREATEDBYFULLNAME;
+			
+			PopUpManager.centerPopUp(userWindow);
+		}
+		public function getShare():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			var shareWindow:ShareWindow = ShareWindow(PopUpManager.createPopUp(this, ShareWindow, true));
+			shareWindow.viewURL = viewURL;
+			shareWindow.shareURL = shareURL;
+			PopUpManager.centerPopUp(shareWindow);
+		}
+		
+		public function toggleFullScreen():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			if (stage.displayState == 'normal') {
+				stage.displayState = StageDisplayState.FULL_SCREEN;
+			}
+			else {
+				stage.displayState = StageDisplayState.NORMAL;
+			}
+		}
+		
+		public function fullScreenHandler(e:FullScreenEvent):void {
+			if (e.fullScreen) {
+				isInFullScreen = true;
+				fullscreenBtn.setStyle('icon', exitFullscreenImg);
+				//fullscreenBtn.icon = exitFullscreenImg;
+			}
+			else {
+				isInFullScreen = false;
+				fullscreenBtn.setStyle('icon', fullscreenImg);
+				//fullscreenBtn.source = fullscreenImg;
+			}	
+			mp.setSize(e.currentTarget.stageWidth, (e.currentTarget.stageHeight - controls.height));
+			slideLoadedHandler(new Event(Event.COMPLETE));
+		}
+		
+		public function toggleMenu():void {
+			if (extrasMenu.visible) {
+				extrasMenu.visible = false;
+			} 
+			else {
+				extrasMenu.visible = true;
+			}
+		}
+		public function toggleSlideList():void {
+			if (slideList.visible) {
+				slideList.visible = false;
+			}
+			else {
+				slideList.visible = true;
+				slideThumbList.setFocus();
+			}
+		}
+		
+		public function slideClicked():void {
+			if (extrasMenu.visible) extrasMenu.visible = false;
+			if (slideList.visible) slideList.visible = false;
+		}
+		
+		public function toggleTopMenu(e:MouseEvent):void {
+			var isMouseOver:Boolean = topMenuContainer.hitTestPoint(e.stageX, e.stageY);
+			//put a 5px 'forgiveness zone' at the top and side of the menu
+			if (e.stageY < 5 || (e.stageY < 55 && e.stageX < 5)) {
+				isMouseOver = true;
+			}
+			if (topMenu.visible && !w1.isPlaying && !w2.isPlaying) {
+				if(!isMouseOver){
+					topMenu.visible = false
+				}
+			}	
+			if (!topMenu.visible && !w1.isPlaying && !w2.isPlaying) {
+				if (isMouseOver) {
+					topMenu.visible = true
+				}
+			}
+		}
+		
+		public function stopGlow():void{
+			if(glowIn != null && glowIn.isPlaying){ 	
+				glowIn.stop(); 
+				toggleMenuBtn.filters = null;
+			}
+		}
+		public function startGlow():void{
+			glowIn = new Glow();
+			glowIn.duration = 5000;
+			glowIn.alphaFrom = 0.0;
+			glowIn.alphaTo = 0.7;
+			glowIn.blurXFrom = 0.0;
+			glowIn.blurXTo = 5.0
+			glowIn.blurYFrom = 0.0;
+			glowIn.blurYTo = 5.0;
+			glowIn.strength = 3;
+			glowIn.inner = false;
+			glowIn.color = StyleManager.getColorName('blue');
+			glowIn.repeatCount = 0;
+			glowIn.play([toggleMenuBtn],true);
+		}
+		
+		public function toggleNewMenu():void{
+			leftSidebar.width == 135 ? leftSidebar.width = 0 : leftSidebar.width = 135
+			bottom.height == 100 ? bottom.height = 0 : bottom.height = 100;
+			stopGlow();
+		}
+		public function showNewMenu():void{
+			leftSidebar.width = 135;
+			bottom.height = 100;
+			stopGlow();
+		}
+		
+		public function hideNewMenu():void{
+			leftSidebar.width = 0;
+			bottom.height = 0;
+			if(!autoShowMenu.selected && slideHasMedia){
+				//startGlow();
+			}
+		}
+		public function fixExternalMediaSize():void{
+			if(leftSidebar.width > 0){
+				mp.setSize(externalMediaContainer.width - leftSidebar.width, externalMediaContainer.height - bottom.height - bottom.getStyle('paddingBottom'));
+			}
+			else{
+				mp.setSize(slideCanvas.width, slideCanvas.height);
+			}
+		}
+		
+		public function faultHandler(e:Event):void {
+			//Alert.show('An unexpected error has occurred.  We\'re sorry for the inconvenience.  We have been notified and are working to resolve this issue.');
+			Alert.show(ObjectUtil.toString(e),'fault');
+		}
+		]]>
+		
+	</mx:Script>
+	
+	<!-- services -->
+	<mx:RemoteObject id="appConfigService" endpoint="/flex2gateway/" destination="ColdFusion" source="services.utils.ConfigProxy" showBusyCursor="true">
+		<mx:method name="getConfig" result="getAppConfigHandler(event)" fault="faultHandler(event)" />
+	</mx:RemoteObject>
+	
+	<mx:RemoteObject id="slideShowService" endpoint="/flex2gateway/" destination="ColdFusion" source="services.slideshows.RemoteSlideShowService" showBusyCursor="true">
+		<mx:method name="getSlideshowByID" result="getSlideshowHandler(event)" fault="faultHandler(event)" />		
+		<mx:method name="listSlidesBySlideshowID" result="getSlidesHandler(event)" fault="faultHandler(event)" />		
+		<mx:method name="saveNewView" result="saveNewViewHandler(event)" fault="faultHandler(event)" />
+	</mx:RemoteObject>
+	
+	<mx:WipeDown id="wipeD" duration="500" />
+	<mx:WipeUp id="wipeU" duration="500" />
+	
+	<mx:Fade alphaFrom="0.0" alphaTo="1.0" duration="250" id="d1" />
+	<mx:Fade alphaFrom="1.0" alphaTo="0.0" duration="250" id="d2" />
+	
+	<mx:Fade alphaFrom="0.0" alphaTo="1.0" id="fadeIn" duration="50" target="{slideContainer}" effectStart="advance(direction,slideNum);" />
+	<mx:Fade alphaFrom="1.0" alphaTo="0.0" id="fadeOut" duration="50" target="{slideContainer}" effectEnd="transitionComplete();" />
+	
+	<mx:WipeUp id="w1" duration="750" />
+	<mx:WipeDown id="w2" duration="250" />
+	
+	<mx:VBox styleName="main" id="mainPanel" width="100%" height="100%" verticalGap="0">
+		<mx:Canvas width="100%" height="100%" id="slideCanvas">
+			 
+			<slidesix:SmoothImage id="slideContainer" left="{leftSidebar.width &gt; 0 ? leftSidebar.width : 0}" alpha="{extrasMenu.visible ? 0.1 : 1.0}" width="100%" height="{bottom.height &gt; 0 ? slideCanvas.height - bottom.height : slideCanvas.height}" horizontalAlign="center" cacheAsBitmap="true" scaleContent="true" click="slideClicked()" />
+			
+			<mx:VBox id="externalMediaContainer" left="{leftSidebar.width &gt; 0 ? leftSidebar.width : 0}" top="0" width="100%" height="100%" visible="false"></mx:VBox>
+			
+			<mx:Panel id="leftSidebar" title="{hasMedia &amp;&amp; hasVideo ? 'video:' : ''} {hasMedia &amp;&amp; !hasVideo ? 'audio:' : ''} {hasMedia ? mediaStatus : 'no media exists'}"
+				 resizeEffect="Resize" width="0" height="100%" left="0" top="0" bottom="6" 
+				 visible="{leftSidebar.width &gt; 130}" titleStyleName="panelTitleStyle" verticalGap="1">
+				<mx:VBox horizontalAlign="center" width="100%">
+					<mx:UIComponent id="videoContainer" width="130" height="98" visible="{hasMedia}" />
+					<mx:HBox width="100%" visible="{hasMedia}" horizontalGap="0" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:Button id="stopBtnSmall" width="60" alpha="{stopBtnSmall.enabled ? 1 : 0.2}" icon="{isSlidePlaying || mp.isPlaying ? stopImg : stopDisabledImg}" toolTip="{isSlidePlaying || mp.isPlaying ? 'Stop Media' : ''}" click="stopMedia(); isSlidePlaying = false;" enabled="{isSlidePlaying || mp.isPlaying}" />
+						<mx:Button id="playBtnSmall" width="60" icon="{isSlidePlaying || mp.isPlaying ? pauseImg : playImg}" toolTip="{isSlidePlaying || mp.isPlaying ? 'Pause Media' : 'Play Media'}" click="handlePlayClick()" />
+					</mx:HBox>
+					<!--<mx:HBox width="100%">
+						<mx:Text id="playPosition" visible="{isPlaying}" />
+					</mx:HBox>-->
+				</mx:VBox>
+				<mx:Spacer height="100%" />		
+						
+				<mx:VBox width="100%" id="sideBarButtons" horizontalAlign="center" verticalGap="1" paddingBottom="6">
+					<mx:HBox width="100%" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:CheckBox id="autoShowMenu" width="118" textAlign="left" selected="true" label="Auto show menu" toolTip="Check this box to automatically open this menu if a slide has media." />
+					</mx:HBox>
+					<mx:HBox width="100%" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:Button icon="{detailsImg}" width="55" id="recordedVersionBtn" click="goRecordedVersion();" />	
+						<mx:Button icon="{attachImg}" width="55" id="attachBtn" click="{presoHasAttachment ? downloadAttach() : '';}" enabled="{presoHasAttachment ? true : false}" alpha="{presoHasAttachment ? 1.0 : 0.3}" toolTip="{presoHasAttachment ? 'Download Attachment' : 'This presentation does not have any attachments'}" useHandCursor="{attachBtn.enabled}" styleName="menuBtn" />
+					</mx:HBox>
+					<mx:HBox width="100%" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:Button icon="{userImg}" width="55" id="userBtn" click="getUser();" toolTip="Learn about the presenter" useHandCursor="true" styleName="menuBtn" />	
+						<!--<mx:Button icon="{detailsImg}" width="125" id="goToDetailsBtn" click="goDetails();" toolTip="View this presentation on SlideSix.com" useHandCursor="true" label="View On SlideSix" styleName="menuBtn" />-->
+						<mx:Button icon="{userOverrideAutoPlay ? mediaImg : disableAutoPlayImg}" width="55" id="overrideAutoPlayBtn" click="userOverrideAutoPlay = !userOverrideAutoPlay;" toolTip="{userOverrideAutoPlay ? 'Enable auto play for media when slides advance.  Has no effect on external (YouTube, etc) videos' : 'Disable auto play for media when slides advance.  Has no effect on external videos'}" useHandCursor="true" styleName="menuBtn" />
+					</mx:HBox>
+					<mx:HBox width="100%" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:Button icon="{embedImg}" width="118" id="embedCodeBtn" click="getEmbedCode()" toolTip="Embed this presentation in your site, blog or wiki or post to your favorite social network" useHandCursor="{embedCodeBtn.enabled}" styleName="menuBtn" label="Embed/Share" />
+						<!--<mx:Button icon="{mailImg}" width="55" id="shareBtn" click="getShare();" toolTip="Tell a friend about this presentation" useHandCursor="{shareBtn.enabled}" styleName="menuBtn" />-->
+					</mx:HBox>
+					<mx:HBox width="100%" paddingLeft="3" paddingRight="3" horizontalAlign="center">
+						<mx:Button icon="{fullscreenImg}" width="118" id="fullscreenBtn" click="toggleFullScreen();" toolTip="{isInFullScreen ? 'Exit FullScreen' : 'Go FullScreen'}" useHandCursor="true" label="{isInFullScreen ? 'Exit' : 'FullScreen'}" styleName="menuBtn" />
+					</mx:HBox>
+				</mx:VBox>
+			</mx:Panel>
+			 
+			<mx:VBox id="bottom" resizeEffect="Resize" bottom="0" left="135" width="100%" height="0" paddingBottom="6">
+				<mx:TextArea id="slideNotes" fontFamily="Verdana" editable="false" visible="{bottom.height == 100}" borderColor="#707070" backgroundAlpha="0" backgroundColor="#707070" borderSkin="mx.skins.halo.HaloBorder" borderStyle="solid" width="100%" height="100%" text="{slides[currentSlide].NOTES != null ? slides[currentSlide].notes : 'Current slide does not have any notes'}" />
+			</mx:VBox>
+			
+			<mx:HBox width="100%" id="topMenuContainer" height="55" top="0" left="0" verticalAlign="top">
+				<mx:HBox id="topMenu" width="100%" verticalAlign="middle" backgroundAlpha="1" hideEffect="{w1}" showEffect="{w2}" height="35" backgroundColor="#333333" borderStyle="solid" borderColor="#000000">
+					<mx:HBox paddingBottom="5" paddingTop="5" paddingLeft="5" paddingRight="0">
+						<mx:Button icon="{slidesImg}" id="slideListBtn" alpha="1" label="Slides" click="toggleSlideList()" toolTip="Jump to a new slide" styleName="menuBtn" width="78" />
+					</mx:HBox>
+					
+					<mx:HBox width="100%" horizontalAlign="center" height="100%" verticalAlign="middle">
+						<mx:Text height="25" text="{statusMsg.length &gt; 0 ? statusMsg : currentSlide + 1 +' of '+ slideLen}" textAlign="center" width="100%" styleName="slideText" toolTip="{slideLen &gt;0 ? currentSlide + 1 +' of '+ slideLen : 'Loading...'}" />
+					</mx:HBox>
+					
+					<mx:HBox paddingBottom="5" paddingTop="5" paddingLeft="0" paddingRight="5">
+						<mx:Button label="&lt;&lt; First" id="firstSlideBtn" click="{hasPrev ? transition('start') : ''}" enabled="{hasPrev ? true : false}"  alpha="{hasPrev ? 1.0 : 0.5}" toolTip="{hasPrev ? 'Jump to the first slide' : ''}" styleName="menuBtn" />
+						<mx:Button label="Last &gt;&gt;" id="lastSlideBtn" click="{hasNext ? transition('end') : ''}" enabled="{hasNext ? true : false}"  alpha="{hasNext ? 1.0 : 0.5}" toolTip="{hasNext ? 'Jump to the last slide' : ''}" useHandCursor="{lastSlideBtn.enabled}" styleName="menuBtn" />
+					</mx:HBox>
+				</mx:HBox>
+			</mx:HBox>
+			
+			<mx:ProgressBar id="loadingBar" indeterminate="true" trackHeight="20" barColor="#0066FF" height="30" width="150" top="{(slideCanvas.height / 2) - (loadingBar.height / 2)}" left="{(slideCanvas.width / 2) - (loadingBar.width / 2)}" label="" labelPlacement="top" textAlign="center" visible="{slideLen &gt;0 ? false : true}" />
+			
+			<mx:HBox horizontalAlign="center" width="100%" height="6" bottom="0" verticalAlign="bottom" verticalGap="0">
+				<mx:ProgressBar id="playProgressBar" mode="manual" width="100%" alpha="0.5" label="" visible="{slides[currentSlide].EXTERNALMEDIAID != null ? false : true}" />
+			</mx:HBox>
+			
+			<mx:VBox id="extrasMenu" top="{(slideCanvas.height / 2)-(extrasMenu.height / 2)}" left="{(slideCanvas.width / 2)-(extrasMenu.width / 2)}" width="220" height="310" hideEffect="{d2}" showEffect="{d1}" backgroundColor="#333333" borderStyle="solid" cornerRadius="5" borderColor="#000000" visible="false" paddingLeft="10" paddingRight="10">
+				<mx:HBox width="100%" horizontalAlign="center">
+					<mx:HSlider id="autoPlaySpeed" minimum="1" maximum="3" value="2" tickInterval="1" snapInterval="1" liveDragging="true" labels="['Slow','Fast']" showDataTip="false"  />
+				</mx:HBox>
+			</mx:VBox>
+			
+			<mx:VBox id="slideList" backgroundColor="#333333" backgroundAlpha="0.8" width="100%" height="120" bottom="7" showEffect="{wipeU}" hideEffect="{wipeD}" visible="false">
+				<seb:SebCoverFlow selectedCoverClicked="slideThumbClicked('',slideThumbList.selectedIndex)" flipAngle="35" selectedItemGap="100" id="slideThumbList" width="100%" height="100%" reflection="false" bothsides="true" dataProvider="{thumbs}" selectedIndex="{currentSlide}" />
+			</mx:VBox>
+			
+			<mx:Box id="wfLoaderBox" visible="false" width="100%" height="100%" backgroundColor="#000000" backgroundAlpha="0.7"  paddingTop="{(slideCanvas.height / 2) - (150)}" paddingLeft="{(slideCanvas.width / 2) - (150)}" />
+			
+		</mx:Canvas>
+		<mx:VBox styleName="controls" width="100%" id="controls" enabled="{slideLen &gt;0 ? true : false}" disabledOverlayAlpha="0.1">
+			<mx:Canvas width="100%" height="33">
+				<mx:HBox id="menuBtnContainer" horizontalAlign="center" verticalAlign="middle" left="5" height="100%">
+					<mx:Button width="85" label="{leftSidebar.width == 0 ? 'Show' : 'Hide'} Menu" id="toggleMenuBtn" 
+						click="toggleNewMenu();" toolTip="{slides[currentSlide].EXTERNALMEDIAID != null ? 'Menu disabled during external videos' : 'Toggle Viewer Menu'}" styleName="menuBtn" enabled="{slides[currentSlide].EXTERNALMEDIAID == null}" />
+				</mx:HBox>
+				
+				<mx:HBox id="controlsContainer" width="100%" horizontalAlign="center" verticalAlign="middle" height="100%">
+					<!-- <mx:Image source="{hasPrev ? startImg : startDisabledImg}" id="startBtn" click="{hasPrev ? transition('start') : ''}" toolTip="{hasPrev ? 'First Slide' : ''}" useHandCursor="true" buttonMode="true" /> -->
+					<mx:Button alpha="{hasPrev ? 1.0 : 0.5}" label="&lt; Prev" 
+						id="prevBtn" click="{hasPrev ? transition('prev') : ''}" toolTip="{hasPrev ? 'Previous Slide' : ''}" 
+						useHandCursor="true" buttonMode="true" color="#fcfcfc" />
+					<!--
+					<mx:Image source="{stopImg}" alpha="{isSlidePlaying || mp.isPlaying ? 1 : 0.5}" id="autoPlayStopBtn" click="handleStopClick()" toolTip="{isSlidePlaying || mp.isPlaying ? 'Stop' : ''}" useHandCursor="true" buttonMode="true" visible="false" width="0" />
+					-->
+					
+					<mx:Button label="{isSlidePlaying || mp.isPlaying ? 'Pause' : 'Play'}" width="60" color="#fcfcfc"
+						id="autoPlayBtn" click="handlePlayClick()" toolTip="{isSlidePlaying || mp.isPlaying ? 'Pause' : 'Play'}" useHandCursor="true" buttonMode="true" />
+					
+					<mx:Button label="Next &gt;" color="#fcfcfc"
+						alpha="{hasNext ? 1.0 : 0.5}" id="nextBtn" click="{hasNext ? transition('next') : ''}" toolTip="{hasNext ? 'Next Slide' : ''}" useHandCursor="true" buttonMode="true" />
+					<!-- <mx:Image source="{hasNext ? endImg : endDisabledImg}" id="endBtn" click="{hasNext ? transition('end') : ''}" toolTip="{hasNext ? 'Last Slide' : ''}" useHandCursor="true" buttonMode="true" /> -->
+				</mx:HBox>	
+				
+				<mx:HBox horizontalAlign="right" verticalAlign="middle" right="5" height="100%">
+					<slidesix:SmoothImage source="{logoImg}" id="goHomeBtn" click="goDetails();" toolTip="Go To SlideSix.com" width="85" buttonMode="true" />
+				</mx:HBox>
+			</mx:Canvas>
+		</mx:VBox>
+		
+	</mx:VBox>
+		
+</mx:Application>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" width="300" showCloseButton="true" title="Tell A Friend">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+		import flash.events.Event;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		import mx.rpc.http.HTTPService;
+		
+		public var viewURL:String;
+		[Bindable]
+		public var shareURL:String;
+		
+		[Bindable]
+		public var defaultMsg:String;
+		
+		public function init():void {
+			this.addEventListener(CloseEvent.CLOSE, closeHandler);
+			defaultMsg = "Check out this presentation on SlideSix.com!! \n" + viewURL;
+		}
+		public function closeHandler(e:Event):void {
+			PopUpManager.removePopUp(this);
+		}
+		public function send():void {
+			//validate
+			var tV:Boolean = sendToValidator.validate().type == 'invalid' ? false : true;
+			var fV:Boolean = sendFromValidator.validate().type == 'invalid' ? false : true;			
+			var mV:Boolean = sendMsgValidator.validate().type == 'invalid' ? false : true;			
+			var m:String = '';
+			if(!tV){
+				m += 'Please enter an email address of who you would like to send this to in the \'Send To \' box.\n'
+			}
+			if(!fV){
+				m += 'Please enter your name in the \'From\' text box.\n'
+			}
+			if(!mV){
+				m += 'Please enter a message in the \'Msg\' box.\n';
+			}
+			if(m.length){
+				Alert.show(m, 'Oops...');
+			}
+			
+			if (tV && fV && mV){
+				var existingMsg:String = msg.text;
+				if(existingMsg.indexOf(viewURL) == -1){
+					msg.text += '\n' + defaultMsg;
+				}
+				shareService.send();
+			} 
+			
+		}
+		public function sent(event:ResultEvent):void {
+			Alert.show('Your message has been sent.', 'Thanks', Alert.OK, this, function(e:CloseEvent):void{
+				closeHandler(new Event(Event.CLOSE));
+			});
+		}
+		]]>
+	</mx:Script>
+	<mx:Validator id="sendToValidator" source="{sendTo}" required="true" property="text" requiredFieldError="Please enter an email address (or list of email addresses separated by a comma)." />
+	<mx:Validator id="sendFromValidator" source="{sendFrom}" required="true" property="text" requiredFieldError="Please enter your name." />
+	<mx:Validator id="sendMsgValidator" source="{msg}" required="true" property="text" requiredFieldError="Please enter a message." />
+	
+	<mx:VBox id="shareForm" width="100%" height="240">
+		<mx:HBox styleName="formContainer">
+			<mx:Label width="60" text="Send To" />
+			<mx:TextInput width="200" id="sendTo" toolTip="Enter an email address - or a comma separated list of email addresses." />
+		</mx:HBox>
+		<mx:HBox styleName="formContainer">
+			<mx:Label width="60" text="From" />
+			<mx:TextInput width="200" id="sendFrom" toolTip="Enter your name." />
+		</mx:HBox>
+		<mx:HBox styleName="formContainer">
+			<mx:Label width="60" text="Msg" />
+			<mx:TextArea width="200" height="100" id="msg" text="{defaultMsg}" toolTip="Personalize this message.  It's a good idea to leave the link to this presentation in the message, otherwise the recipient will not be able to find this presentation." />
+		</mx:HBox>
+		<mx:HBox styleName="formContainer">
+			<mx:Label width="60" text="" />
+			<mx:Button id="sendMsg" label="Send" click="send();" />
+		</mx:HBox>
+	</mx:VBox>
+	<mx:HTTPService id="shareService" url="{shareURL}" method="POST" useProxy="false" result="sent(event);">
+		<mx:request xmlns="">
+			<sendTo>{sendTo.text}</sendTo>
+			<sendFrom>{sendFrom.text}</sendFrom>
+			<sendMsg>{msg.text}</sendMsg>
+		</mx:request>
+	</mx:HTTPService>
+</mx:TitleWindow>

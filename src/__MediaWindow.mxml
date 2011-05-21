@@ -1,0 +1,115 @@
+﻿<?xml version="1.0" encoding="utf-8"?>	
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" height="300" width="200" headerHeight="10" borderColor="#CC0000" creationComplete="init();" roundedBottomCorners="true" paddingBottom="0" paddingTop="0" paddingRight="0" paddingLeft="0">
+	
+	<mx:Script>
+		<![CDATA[
+		import flash.events.*;
+		import flash.net.NetConnection;
+		import flash.net.NetStream;
+		import mx.controls.Alert;
+		import mx.core.UIComponent;
+		import mx.managers.PopUpManager;
+		import mx.events.VideoEvent;
+		import mx.utils.ObjectUtil;
+		import mx.events.MetadataEvent;
+		import flash.display.Sprite;
+		import flash.media.Video;
+		import flash.net.NetConnection;
+		import flash.net.NetStream;
+		import mx.core.UIComponent;
+		import flash.net.ObjectEncoding;
+		
+		public var slideMediaURL:String;
+		private var videoContainer:UIComponent = new UIComponent();
+		
+		[Bindable]
+		public var hasMedia:Boolean;
+		[Bindable]
+		public var hasVideo:Boolean;
+		[Bindable]
+		[Embed(source = 'assets/play.png')]
+		private var playImg:Class;
+		[Bindable]
+		[Embed(source = 'assets/stop.png')]
+		private var stopImg:Class;
+		[Bindable]
+		[Embed(source = 'assets/pause.png')]
+		private var pauseImg:Class;
+		
+		private var connection:NetConnection;
+		private var stream:NetStream;
+		
+		public function init():void {
+			connection = new NetConnection();
+			connection.client = this;
+			connection.objectEncoding = ObjectEncoding.AMF0;
+			connection.addEventListener(NetStatusEvent.NET_STATUS, netStatusHandler);
+			connection.addEventListener(SecurityErrorEvent.SECURITY_ERROR, securityErrorHandler);
+			connection.connect(null);
+		}
+		
+		private function netStatusHandler(event:NetStatusEvent):void {
+			switch (event.info.code) {
+				case "NetConnection.Connect.Success":
+				connectStream();
+				break;
+				case "NetStream.Play.StreamNotFound":
+				break;
+			}
+		}
+		
+		private function connectStream():void {
+			videoContainer.setActualSize(140, 95);
+			stream = new NetStream(connection);
+			stream.addEventListener(NetStatusEvent.NET_STATUS, netStatusHandler);
+			stream.addEventListener(AsyncErrorEvent.ASYNC_ERROR, asyncErrorHandler);
+			var videoContents:Video = new Video(140,95);
+			videoContents.attachNetStream(stream);
+			
+			videoContainer.addChild(videoContents);
+			mainStage.addChild(videoContainer);
+			stream.play(slideMediaURL);
+		}
+		
+		private function securityErrorHandler(event:SecurityErrorEvent):void {
+			
+		}
+		private function asyncErrorHandler(event:AsyncErrorEvent):void {
+			
+		}
+		public function metaReceivedHandler(e:Event):void {
+			//Alert.show(ObjectUtil.toString(videoContents.metadata));
+		}
+		
+		public function vidCompleteHandler(e:Event):void {
+			playBtn.source = playImg;
+		}
+		
+		public function playMedia():void {
+			if (stream.time == 0) {
+				connectStream();
+				//videoContents.addEventListener(MetadataEvent.METADATA_RECEIVED, metaReceivedHandler);
+				playBtn.source = pauseImg;	
+			}
+			else {
+				stream.pause();
+				playBtn.source = playImg;
+			}
+		}
+		
+		public function stopMedia():void {
+			stream.close();
+			playBtn.source = playImg;
+		}
+
+		]]>
+	</mx:Script>
+	<mx:Fade alphaFrom="0.0" alphaTo="1.0" duration="100" id="fadeIn" />
+	<mx:Fade alphaFrom="0.0" alphaTo="1.0" duration="100" id="fadeOut" />
+	<mx:Panel id="mainStage" width="100%" height="100%">
+	</mx:Panel> 				
+	<mx:ControlBar paddingBottom="0" paddingTop="0">
+		<mx:Image source="{playImg}" id="playBtn" click="playMedia();" />
+		<mx:Image source="{stopImg}" id="stopBtn" click="stopMedia();" />
+	</mx:ControlBar>
+</mx:TitleWindow>

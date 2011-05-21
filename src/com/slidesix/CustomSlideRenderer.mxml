@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:i="*" creationComplete="init()" xmlns:slidesix="com.slidesix.*">
+	<mx:Script>
+	<![CDATA[
+	public function init():void {
+	}
+	]]>
+	</mx:Script>
+	<slidesix:SmoothImage source="{parentApplication.storeBaseURL}{data.thumbpath}" width="125" height="92" id="slide" top="{(this.height / 2) - (slide.height / 2)}" left="{(this.width / 2) - (slide.width / 2)}" maintainAspectRatio="true" scaleContent="true" styleName="slideImage" toolTip="{data.title}" />
+	<!-- <mx:Label text="{data.title}" truncateToFit="true" width="160" /> -->
+</mx:Canvas>
+

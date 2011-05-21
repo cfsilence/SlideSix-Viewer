@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init();" width="{parentApplication.isInFullScreen ? 350 : 200}" height="{parentApplication.isInFullScreen ? 350 : 300}" x="{parentApplication.isInFullScreen ? parentApplication.mainPanel.width - this.width : parentApplication.mainPanel.width - this.width}" y="{parentApplication.isInFullScreen ? 10 : 10}" showCloseButton="true" title="Slide Notes">
+	<mx:Script>
+		<![CDATA[
+		import flash.events.Event;
+		import mx.events.CloseEvent;
+		import mx.managers.PopUpManager;
+		
+		[Bindable]
+		public var notes:String;
+		
+		
+		public function init():void {
+			this.addEventListener(CloseEvent.CLOSE, closeHandler);
+		}
+		public function closeHandler(e:Event):void {
+			this.visible = false;
+		}
+		]]>
+	</mx:Script>
+	<mx:HBox id="notesContainer" width="100%" height="100%" backgroundColor="#000000" backgroundAlpha="0.5">
+		<mx:TextArea id="slideNotesDisplay" width="100%" height="100%" text="{notes}" editable="false" themeColor="#cc0000" />
+	</mx:HBox>
+</mx:TitleWindow>

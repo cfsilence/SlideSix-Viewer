@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:SWFLoader 
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	initialize="onInitialize()"
+	autoLoad="false"
+	scaleContent="true"
+	maintainAspectRatio="true"
+	source="{src}"
+	ioError="onLoaderIoError(event)">
+
+	<mx:Metadata>
+		[Event(name="playerStateChanged")]
+		[Event(name="videoCurrentTime")]
+		[Event(name="videoDuration")]
+	</mx:Metadata>
+		
+	<mx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			import mx.events.ResizeEvent;
+			
+			//---------------------------------------------------------
+			// Class Constants
+			//---------------------------------------------------------
+			// See YouTube documentation for meanings
+			public static const UNLOADED:int = -2; // The player SWF is not yet loaded
+			public static const UNSTARTED:int = -1;
+			public static const ENDED:int = 0;
+			public static const PLAYING:int = 1;
+			public static const PAUSED:int = 2;
+			public static const BUFFERING:int = 3;
+			public static const CUED:int = 5;
+		
+			//---------------------------------------------------------
+			// Class Variables
+			//---------------------------------------------------------
+			[Bindable] public var connName:String = new Date().getTime().toString();
+			[Bindable] private var src:String = '/includes/flash/ytbridge.swf?connName=' + connName;
+			
+			public var centralInbox:YTBridgeInbox = new YTBridgeInbox(connName);
+			private static var pending:Array = new Array();
+			
+			// Class initializer
+			{
+                Security.allowDomain('www.youtube.com');
+                Security.allowDomain('gdata.youtube.com');
+                Security.allowInsecureDomain('gdata.youtube.com');
+                Security.allowInsecureDomain('www.youtube.com');
+			}
+			
+			//---------------------------------------------------------
+			// Class Functions
+			//---------------------------------------------------------
+			
+			/**
+			 * The wrapper SWF has opened a local connection we can talk to
+			 */
+            internal static function onChannelOpen (localConnectionName:String):void {
+				var player:YTPlayer = pending.pop() as YTPlayer;
+				player.onChannel( localConnectionName );
+				if (pending.length > 0)
+					// Load the next waiting swf
+					pending[pending.length-1].load();
+            }
+
+			//---------------------------------------------------------
+			// Instance Variables
+			//---------------------------------------------------------
+			private var inbox:LocalConnection = new LocalConnection();
+			private var outbox:LocalConnection = new LocalConnection();
+			private var outboxName:String = null;
+			private var _volume:int = 100;
+			private var _isMuted:Boolean = false;
+			private var _playerState:int = UNLOADED;
+			private var _monitorPlayback:Boolean = false;
+			private var _currentTime:Number = 0;
+			private var _timer:Timer = null;
+			private var _duration:Number = 0;
+			private var _seekTo:int = 0;
+
+			//---------------------------------------------------------
+			// Properties
+			//---------------------------------------------------------
+
+			/** Required YouTube developer key */
+			public var developerKey:String;
+
+			/**
+			 * Set the initial location to start playing at.
+			 * Set the seek location before calling cueVideo() or
+			 * loadVideo(), or call it during playback to change
+			 * the current location.
+			 */ 			
+			public function get seek ():int {
+				return _seekTo;
+			}
+			
+			public function set seek (s:int):void {
+				_seekTo = s;
+				if (_playerState == PLAYING)
+					sendMsg( 'seekTo', s );
+			}
+
+			/** 
+			 * Enable or disable current playback monitoring.
+			 * If enabled the propety currentTime will be updated whenever
+			 * a video is playing.
+			 */
+			public function get monitorPlayback ():Boolean {
+				return _monitorPlayback;
+			}
+			
+			public function set monitorPlayback (b:Boolean):void {
+				if (b != _monitorPlayback) {
+					_monitorPlayback = b;
+					checkPlaybackMonitor();
+				}
+			}
+
+			[Bindable(event='playerStateChanged')]
+			public function get playerState ():int {
+				return _playerState;
+			}
+
+			/**
+			 * Get the duration of playing video. May not be set until 
+			 * some time after the video is playing - check the YouTube
+			 * documentation.
+			 */
+			[Bindable(event="videoDuration")] 
+			public function get duration ():Number {
+				return _duration;
+			}
+
+			[Bindable]
+			public function get volume ():int {
+				return _volume;
+			}
+			
+			public function set volume (v:int):void {
+				_volume = Math.min(100, Math.max( v, 0));
+				sendMsg( 'setVolume', _volume );
+			}
+			
+			[Bindable]
+			public function get muted ():Boolean {
+				return _isMuted;
+			}
+			
+			public function set muted (b:Boolean):void {
+				_isMuted = b;
+				if (_isMuted)
+					sendMsg( 'mute' );
+				else
+					sendMsg( 'unMute' );
+			}
+			
+			[Bindable(event='videoCurrentTime')]
+			public function get currentTime ():Number {
+				return _currentTime;
+			}
+			
+			// For your convenience...
+			
+			[Bindable(event='playerStateChanged')]
+			public function get isPlayable ():Boolean {
+				return _playerState == CUED || _playerState == PAUSED;
+			}
+			
+			[Bindable(event='playerStateChanged')]
+			public function get isPauseable ():Boolean {
+				return _playerState == PLAYING;
+			}
+			
+			[Bindable(event='playerStateChanged')]
+			public function get playerStateText ():String {
+				switch (_playerState){
+					case UNLOADED: return "Unloaded";
+					case UNSTARTED: return "Unstarted";
+					case ENDED: return "Ended";
+					case PLAYING: return "Playing";
+					case PAUSED: return "Paused";
+					case BUFFERING: return "Buffering";
+					case CUED: return "Cued";
+					default: return "???";
+				}
+			}
+
+			//---------------------------------------------------------
+			// Public Instance Functions
+			//---------------------------------------------------------
+
+			/**
+			 * Stop playing video
+			 */
+			public function pauseVideo ():void {
+				sendMsg( 'pauseVideo' );
+			}
+			
+			/**
+			 * Play cued or paused video
+			 */
+			public function playVideo ():void {
+				sendMsg('playVideo');
+			}
+			
+			/**
+			 * Stops the current video.  The final state will be UNSTARTED.
+			 * You cannot resume playing without reloading the video.
+			 */ 
+			public function stopVideo ():void {
+				sendMsg( 'stopVideo' );
+			}
+			
+			/**
+			 * Clears the video display
+			 */
+			public function clearVideo ():void {
+				sendMsg( 'clearVideo' );
+			}
+			
+			/**
+			 * Load video but don't play it yet
+			 */
+			public function cueVideoById (videoId:String):void {
+				sendMsg( 'cueVideoById', videoId, _seekTo );
+			}
+			
+			/**
+			 * Load video and start playing it
+			 */
+            public function loadVideoById (videoId:String):void {
+            	if (_playerState == UNLOADED)
+            		callLater( loadVideoById, [videoId] );
+            	else
+            		sendMsg( 'loadVideoById', videoId, _seekTo );
+            }
+            
+            /**
+            * Must call if you are done with the player!
+            */
+            public function dispose ():void {
+            	stopVideo();
+            	if (_timer && _timer.running)
+            		_timer.stop();
+            	sendMsg( 'dispose' );
+            	inbox.close();
+            }
+            
+            public function setPlayerSize (w:int, h:int):void {
+            	sendMsg( 'setSize', w, h );
+            }
+
+			//---------------------------------------------------------
+			// Implementation
+			//---------------------------------------------------------
+			private function onInitialize ():void {
+				trace('ytplayer says i made conn name: ' + connName);
+				if (developerKey == null)
+					throw new ArgumentError("You MUST supply your YouTube Developer Key!" );
+				outbox.addEventListener(StatusEvent.STATUS,function (event:*):void {trace("AS3 LC status " + event );});
+				inbox.client = this;
+				if (1 == pending.unshift( this ))
+					load();
+			}
+			
+			private function sendMsg (message:String, ...args):void {
+				if (outboxName != null)
+					outbox.send( outboxName, message, args );
+			}
+			
+			private function checkPlaybackMonitor ():void {
+				if (_monitorPlayback) {
+					if (_playerState == PLAYING) {
+						if (_timer == null) { 
+							_timer = new Timer(250,0);
+							_timer.addEventListener(TimerEvent.TIMER, onTimer );
+						}
+						_timer.start();
+					} else if (_timer != null && _timer.running) {
+						_timer.stop();
+					}
+				} else if (_timer != null && _timer.running) {
+					_timer.stop();
+				}
+			}
+
+			private function onTimer (event:TimerEvent):void {
+				// Ask theplayer to tell us the current time
+				sendMsg( 'getCurrentTime' );
+			}
+
+			//---------------------------------------------------------
+			// Callbacks from the wrapper			
+			//---------------------------------------------------------			
+
+			/**
+			 * The embedded player is loaded and ready to accept commands
+			 */
+			public function onPlayerLoaded (volume:Number, isMuted:Boolean):void {
+				_volume = volume;
+				_isMuted = isMuted;
+
+				_playerState = UNSTARTED;
+				dispatchEvent(new FlexEvent('playerStateChanged'));				
+			}
+
+
+			/**
+			 * The wrapper SWF has opened a local connection for us to talk to it
+			 */			
+			private function onChannel (localConnectionName:String):void {
+				outboxName = "YTB" + localConnectionName;
+				inbox.connect( "YTBHOST" + localConnectionName );
+				sendMsg( 'loadPlayer', developerKey );
+			}
+
+			/**
+			 * There was a problem loading the wrapper SWF
+			 */			
+			private function onLoaderIoError (event:IOErrorEvent):void {
+				trace( 'AS3 onLoaderIoError - ' + event );
+			}
+			
+			public function onPlayerStateChange (newState:Number):void {
+				_playerState = newState;
+				checkPlaybackMonitor();
+				
+				// Let's try asking for the duraction once and hope we get it.
+				// Its been working so far in tests...
+				if (newState == PLAYING)
+					sendMsg( 'getDuration' );
+				
+				dispatchEvent(new FlexEvent('playerStateChanged'));
+			}
+			
+			public function onPlayerError (errorCode:Number):void {
+				trace( "AS3 onPlayerError " + errorCode );
+			}
+			
+			public function onVideoDuration (length:Number):void {
+				if (length != _duration) {
+					_duration = length;
+					dispatchEvent(new FlexEvent("videoDuration"));
+				}
+			}
+			
+			public function onVideoCurrentTime (seconds:Number):void {
+				_currentTime = seconds;
+				dispatchEvent(new FlexEvent('videoCurrentTime'));
+			}
+			
+
+		]]>
+	</mx:Script>
+</mx:SWFLoader>
